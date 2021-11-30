@@ -11,6 +11,7 @@ import android.util.Log
 import android.util.Size
 import android.view.Surface
 import android.view.TextureView
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
@@ -20,6 +21,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.cameraxdemo.databinding.ActivityMainBinding
+import com.example.cameraxdemo.glsurfaceview.GLCameraView
 import com.example.cameraxdemo.glsurfaceview.OnPreviewSurfaceView
 import com.example.cameraxdemo.textureview.VideoTextureRenderer
 import java.io.File
@@ -32,10 +34,8 @@ import java.util.concurrent.Executors
 
 typealias LumaListener = (data: ByteArray) -> Unit
 
-class MainActivity : AppCompatActivity()
-    , TextureView.SurfaceTextureListener  //textureview
-, OnPreviewSurfaceView
-{
+class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //textureview
+    , OnPreviewSurfaceView {
     private var imageCapture: ImageCapture? = null
     private lateinit var binding: ActivityMainBinding
     private var cameraSelector: CameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
@@ -43,10 +43,28 @@ class MainActivity : AppCompatActivity()
     private lateinit var camera: Camera
     private lateinit var cameraProvider: ProcessCameraProvider
     private lateinit var preview: Preview
+    private lateinit var rendererView: View
 
+    enum class RendererMode {
+        RENDERER_MODE_TEXTUREVIEW,  //TextureView模式
+        RENDERER_MODE_GLSURFACEVIEW  //GLSurfaceView模式
+    }
 
+    private val rendererMode: RendererMode = RendererMode.RENDERER_MODE_TEXTUREVIEW
 
     private lateinit var cameraExecutor: ExecutorService
+
+    companion object {
+        private const val TAG = "CameraXBasic"
+        private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
+        private const val REQUEST_CODE_PERMISSIONS = 10
+        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+
+
+        private lateinit var outputDirectory: File
+    }
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,14 +73,22 @@ class MainActivity : AppCompatActivity()
         val view = binding.root;
         setContentView(view)
 
-        // Request camera permissions
-        if (allPermissionsGranted()) {
-            startCamera()
-        } else {
-            ActivityCompat.requestPermissions(
-                this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
-            )
+        if (rendererMode == RendererMode.RENDERER_MODE_GLSURFACEVIEW) {  //glSurfaceView
+            binding.viewFinder.layoutResource = R.layout.layout_glsurfaceview
+            rendererView = binding.viewFinder.inflate()
+            (rendererView as GLCameraView).renderer.onPreviewSurfaceView = this
+
+            // Request camera permissions
+            requestPermissions()
+
+        } else if (rendererMode == RendererMode.RENDERER_MODE_TEXTUREVIEW) { //textureview
+
+            binding.viewFinder.layoutResource = R.layout.layout_textureview
+            rendererView = binding.viewFinder.inflate()
+            (rendererView as TextureView).surfaceTextureListener = this
         }
+
+
 
         // Set up the listener for take photo button
         binding.cameraCaptureButton.setOnClickListener { takePhoto() }
@@ -75,13 +101,19 @@ class MainActivity : AppCompatActivity()
 
         binding.switchCamera.setOnClickListener { switchCamera() }
 
-        binding.viewFinder.renderer.onPreviewSurfaceView = this
-
-
-        //------------textureview
-//        binding.viewFinder.surfaceTextureListener = this
 
     }
+
+    private fun requestPermissions() {
+        if (allPermissionsGranted()) {
+            startCamera()
+        } else {
+            ActivityCompat.requestPermissions(
+                this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
+            )
+        }
+    }
+
 
     private fun takePhoto() {
         // Get a stable reference of the modifiable image capture use case
@@ -99,8 +131,7 @@ class MainActivity : AppCompatActivity()
         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile)
             .build()
 
-        // Set up image capture listener, which is triggered after photo has
-        // been taken
+        // Set up image capture listener, which is triggered after photo has been taken
         imageCapture.takePicture(
             outputOptions,
             ContextCompat.getMainExecutor(this),
@@ -119,24 +150,16 @@ class MainActivity : AppCompatActivity()
 
     }
 
-    class PreviewSurfaceProvider (private val surface: Surface, private val executor: Executor): Preview.SurfaceProvider {
-
+    class PreviewSurfaceProvider(private val surface: Surface, private val executor: Executor) :
+        Preview.SurfaceProvider {
         override fun onSurfaceRequested(request: SurfaceRequest) {
-
-            Log.i("cx---", "onSurfaceRequested---request.resolution.height="+request.resolution.height+",,request.resolution.width="+request.resolution.width)
-
-
+            Utils.LOGI("onSurfaceRequested---request.resolution.height=" + request.resolution.height + ",,request.resolution.width=" + request.resolution.width
+            )
             request.provideSurface(surface, executor, {
-
-                Log.i("cx---", "provideSurface in")
-
-
+                Utils.LOGI( "provideSurface in")
             })
         }
-
-
     }
-
 
 
     private fun startCamera() {
@@ -149,28 +172,42 @@ class MainActivity : AppCompatActivity()
             preview = Preview.Builder()
 //                .setTargetResolution(Size(320,240))
 //                .setTargetAspectRatio(AspectRatio.RATIO_16_9)
-                .setTargetRotation(Surface.ROTATION_90)
+//                .setTargetRotation(Surface.ROTATION_90)
                 .build()
                 .also {
-//                    it.setSurfaceProvider(PreviewSurfaceProvider(surface,executor))  //textureview
 //                    it.setSurfaceProvider(binding.viewFinder.surfaceProvider)
 
-                    //必须判断是否初始化，否则退出app之后再次进入会崩溃
-                    if(!binding.viewFinder.renderer.isSurfaceInit()) return@also
-                    Utils.LOGI("startCamera---preview->thread:${Thread.currentThread().name}")
-                    it.setSurfaceProvider(PreviewSurfaceProvider(binding.viewFinder.renderer.surface,executor = Executors.newSingleThreadExecutor()))
+                    if (rendererMode == RendererMode.RENDERER_MODE_GLSURFACEVIEW) {
+                        //必须判断是否初始化，否则退出app之后再次进入会崩溃
+                        if (!(rendererView as GLCameraView).renderer.isSurfaceInit()) return@also
+                        Utils.LOGI("GLSurfaceViewMode--startCamera-preview->thread:${Thread.currentThread().name}")
+                        it.setSurfaceProvider(
+                            PreviewSurfaceProvider(
+                                (rendererView as GLCameraView).renderer.surface,
+                                executor = Executors.newSingleThreadExecutor()
+                            )
+                        )
+                    } else if (rendererMode == RendererMode.RENDERER_MODE_TEXTUREVIEW) {
+                        it.setSurfaceProvider(
+                            PreviewSurfaceProvider(
+                                surface,
+                                executor = Executors.newSingleThreadExecutor()
+                            )
+                        )
+                    }
+
                 }
-//            preview = binding.viewFinder.renderer.preview
+
 
 
             imageCapture = ImageCapture.Builder()
 //                .setTargetResolution(Size(1920,1080))
-                .setTargetResolution(Size(1080,1920))
+                .setTargetResolution(Size(1080, 1920))
 //                .setTargetRotation(Surface.ROTATION_90)
                 .build()
 
             val imageAnalyzer = ImageAnalysis.Builder()
-                .setTargetResolution(Size(1080,1920))
+                .setTargetResolution(Size(1080, 1920))
 //                .setTargetRotation(Surface.ROTATION_90)
                 .build()
                 .also {
@@ -191,7 +228,7 @@ class MainActivity : AppCompatActivity()
                 // Bind use cases to camera
                 camera = cameraProvider.bindToLifecycle(
 //                    this, cameraSelector, preview, imageCapture, imageAnalyzer
-                    this, cameraSelector, preview, imageCapture,imageAnalyzer
+                    this, cameraSelector, preview, imageCapture, imageAnalyzer
                 )
             } catch (exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
@@ -216,13 +253,11 @@ class MainActivity : AppCompatActivity()
     }
 
     private fun openOrCloseCamera() {
-//        camera?.cameraInfo.
         if (cameraProvider.isBound(imageCapture!!)) {
-//            cameraProvider.unbind(imageCapture)
             cameraProvider.unbindAll()
         } else {
             cameraProvider.bindToLifecycle(
-                this, cameraSelector, imageCapture,preview
+                this, cameraSelector, imageCapture, preview
             )
         }
 
@@ -269,15 +304,6 @@ class MainActivity : AppCompatActivity()
         super.onDestroy()
     }
 
-    companion object {
-        private const val TAG = "CameraXBasic"
-        private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
-        private const val REQUEST_CODE_PERMISSIONS = 10
-        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
-
-
-        private lateinit var outputDirectory: File
-    }
 
 
     override fun onRequestPermissionsResult(
@@ -298,7 +324,6 @@ class MainActivity : AppCompatActivity()
             }
         }
     }
-
 
 
     private class LuminosityAnalyzer(private val listener: LumaListener) : ImageAnalysis.Analyzer {
@@ -386,25 +411,23 @@ class MainActivity : AppCompatActivity()
     }
 
 
-
     //--------------textureview
 
 
     lateinit var surface: Surface
-    lateinit var renderer: VideoTextureRenderer
+    private lateinit var renderer: VideoTextureRenderer
 
     override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
-        Utils.LOGI("onSurfaceTextureAvailable--w*h=${width}*${height}")
-        Utils.LOGI("onSurfaceTextureAvailable--surface=${surface}")
+        Utils.LOGI("TextureViewMode--onSurfaceTextureAvailable--w*h=${width}*${height}")
+        Utils.LOGI("TextureViewMode--onSurfaceTextureAvailable--surface=${surface}")
 
-
-        renderer = VideoTextureRenderer(surface,width,height,  java.util.function.Consumer {
-            Utils.LOGI("onSurfaceTextureAvailable-accept-w*h=${width}*${height}")
-            renderer.setVideoSize(width,height)
+        renderer = VideoTextureRenderer(surface, width, height, java.util.function.Consumer {
+            Utils.LOGI("TextureViewMode--onSurfaceTextureAvailable-accept-w*h=${width}*${height}")
+            renderer.setVideoSize(width, height)
             this.surface = Surface(it)
-            it.setDefaultBufferSize(width,height)
-            it.setDefaultBufferSize(width,height)
-            startCamera()
+            it.setDefaultBufferSize(width, height)
+            it.setDefaultBufferSize(width, height)
+            requestPermissions()
         })
 
     }
@@ -422,10 +445,11 @@ class MainActivity : AppCompatActivity()
     }
 
 
+    //---------------GLSurfaceView
     override fun onSurfaceCreated() {
-        Utils.LOGI("OnPreviewSurfaceView-onSurfaceCreated")
+        Utils.LOGI("GLSurfaceViewMode--OnPreviewSurfaceView-onSurfaceCreated")
 //        runOnUiThread {
-            startCamera()
+        startCamera()
 //        }
 
     }

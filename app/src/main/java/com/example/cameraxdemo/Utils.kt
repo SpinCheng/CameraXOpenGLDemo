@@ -152,11 +152,11 @@ class Utils {
 
 
         fun LOGI( msg: String){
-            Log.i("cx---",msg)
+            Log.i("cxlogI",msg)
         }
 
         fun LOGE( msg: String){
-            Log.e("cx---",msg)
+            Log.e("cxlogE",msg)
         }
 
 
