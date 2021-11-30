@@ -9,11 +9,10 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.util.Size
-import android.view.Surface
-import android.view.TextureView
-import android.view.View
+import android.view.*
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.ActionBarContainer
 import androidx.camera.core.*
 import androidx.camera.core.Camera
 import androidx.camera.core.impl.*
@@ -69,9 +68,13 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         val view = binding.root;
+
+
         setContentView(view)
+
 
         if (rendererMode == RendererMode.RENDERER_MODE_GLSURFACEVIEW) {  //glSurfaceView
             binding.viewFinder.layoutResource = R.layout.layout_glsurfaceview
@@ -100,6 +103,8 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
         binding.openOrCloseCamera.setOnClickListener { openOrCloseCamera() }
 
         binding.switchCamera.setOnClickListener { switchCamera() }
+
+
 
 
     }
@@ -152,9 +157,21 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
 
     class PreviewSurfaceProvider(private val surface: Surface, private val executor: Executor) :
         Preview.SurfaceProvider {
+
+        private lateinit var renderer:VideoTextureRenderer
+
+        fun setRenderer(renderer:VideoTextureRenderer){
+            this.renderer = renderer
+        }
+
         override fun onSurfaceRequested(request: SurfaceRequest) {
             Utils.LOGI("onSurfaceRequested---request.resolution.height=" + request.resolution.height + ",,request.resolution.width=" + request.resolution.width
             )
+            //解决TextureView变形问题，开启矩阵转换适配竖屏模式，宽高需要置换
+            renderer?.setVideoSize(request.resolution.height,request.resolution.width)
+            //关闭矩阵转换，宽高需要正常传入
+//            renderer?.setVideoSize(request.resolution.width,request.resolution.height)
+
             request.provideSurface(surface, executor, {
                 Utils.LOGI( "provideSurface in")
             })
@@ -170,11 +187,11 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
 
             // Preview
             preview = Preview.Builder()
-//                .setTargetResolution(Size(320,240))
+                .setTargetResolution(Size(720,480))
 //                .setTargetAspectRatio(AspectRatio.RATIO_16_9)
 //                .setTargetRotation(Surface.ROTATION_90)
                 .build()
-                .also {
+                .also { it ->
 //                    it.setSurfaceProvider(binding.viewFinder.surfaceProvider)
 
                     if (rendererMode == RendererMode.RENDERER_MODE_GLSURFACEVIEW) {
@@ -192,7 +209,9 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
                             PreviewSurfaceProvider(
                                 surface,
                                 executor = Executors.newSingleThreadExecutor()
-                            )
+                            ).also {
+                                it.setRenderer(renderer)
+                            }
                         )
                     }
 
@@ -313,7 +332,7 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
-//                    startCamera()
+                    startCamera()
             } else {
                 Toast.makeText(
                     this,
@@ -423,9 +442,9 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
 
         renderer = VideoTextureRenderer(surface, width, height, java.util.function.Consumer {
             Utils.LOGI("TextureViewMode--onSurfaceTextureAvailable-accept-w*h=${width}*${height}")
-            renderer.setVideoSize(width, height)
+//            renderer.setVideoSize(width, height)
+
             this.surface = Surface(it)
-            it.setDefaultBufferSize(width, height)
             it.setDefaultBufferSize(width, height)
             requestPermissions()
         })

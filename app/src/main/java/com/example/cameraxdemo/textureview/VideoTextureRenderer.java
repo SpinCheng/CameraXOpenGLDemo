@@ -8,6 +8,8 @@ import android.opengl.GLUtils;
 import android.os.Build;
 import android.util.Log;
 
+import com.example.cameraxdemo.Utils;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -25,7 +27,7 @@ public class VideoTextureRenderer extends TextureSurfaceRenderer implements Surf
                     "varying vec2 v_TexCoordinate;" +
                     "void main() {" +
                     "   v_TexCoordinate = (textureTransform * vTexCoordinate).xy;" +
-//                    "   v_TexCoordinate = (textureTransform * vTexCoordinate).xy;" +
+//                    "   v_TexCoordinate = (vTexCoordinate).xy;" +
                     "   gl_Position = vPosition;" +
                     "}";
 
@@ -52,7 +54,8 @@ public class VideoTextureRenderer extends TextureSurfaceRenderer implements Surf
             0.0f, 1.0f, 0.0f, 1.0f,
             0.0f, 0.0f, 0.0f, 1.0f,
             1.0f, 0.0f, 0.0f, 1.0f,
-            1.0f, 1.0f, 0.0f, 1.0f};
+            1.0f, 1.0f, 0.0f, 1.0f
+    };
 
     private final Consumer<SurfaceTexture> initCompleteRunnable;
 
@@ -71,7 +74,16 @@ public class VideoTextureRenderer extends TextureSurfaceRenderer implements Surf
 
     private int videoWidth;
     private int videoHeight;
-    private boolean adjustViewport = false;
+
+    private int SCALE_RESET = -1;
+    private final int SCALE_MODE_FIT = 0;
+    private final int SCALE_MODE_CENTER_INSIDE = 1;
+    private final int SCALE_MODE_CENTER_CROP = 2;
+    private int adjustViewport = SCALE_MODE_CENTER_INSIDE;
+
+    public void setAdjustViewport(int adjustViewport) {
+        this.adjustViewport = adjustViewport;
+    }
 
     public VideoTextureRenderer(SurfaceTexture texture, int width, int height, Consumer<SurfaceTexture> initComplete)
     {
@@ -166,10 +178,19 @@ public class VideoTextureRenderer extends TextureSurfaceRenderer implements Surf
 
         }
 
-        if (adjustViewport)
-            adjustViewport();
 
-        GLES20.glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
+        switch (adjustViewport){
+            case SCALE_MODE_CENTER_CROP:
+                setScaleModeCenterCrop();
+                break;
+            case SCALE_MODE_CENTER_INSIDE:
+                setScaleModeCenterInside();
+                break;
+            default:
+                break;
+        }
+
+        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
 
         // Draw texture
@@ -198,8 +219,10 @@ public class VideoTextureRenderer extends TextureSurfaceRenderer implements Surf
         return true;
     }
 
-    private void adjustViewport()
+    private void setScaleModeCenterCrop()
     {
+        Utils.Companion.LOGI("setScaleModeCenterCrop--w*h="+width+"*"+height);
+        Utils.Companion.LOGI("setScaleModeCenterCrop--vw*vh="+videoWidth+"*"+videoHeight);
         float surfaceAspect = height / (float)width;
         float videoAspect = videoHeight / (float)videoWidth;
 
@@ -218,8 +241,35 @@ public class VideoTextureRenderer extends TextureSurfaceRenderer implements Surf
             GLES20.glViewport(0, -yOffset, width, newHeight);
         }
 
-        adjustViewport = false;
+        adjustViewport = SCALE_RESET;
     }
+
+    private void setScaleModeCenterInside()
+    {
+        Utils.Companion.LOGI("setScaleModeCenterInside--w*h="+width+"*"+height);
+        Utils.Companion.LOGI("setScaleModeCenterInside--vw*vh="+videoWidth+"*"+videoHeight);
+        float surfaceAspect = height / (float)width;
+        float videoAspect = videoHeight / (float)videoWidth;
+        Utils.Companion.LOGI("setScaleModeCenterInside--surfaceAspect="+surfaceAspect+"，videoAspect="+videoAspect);
+
+        if (surfaceAspect < videoAspect)
+        {
+            float heightRatio = height / (float)videoHeight;
+            int newWidth = (int)(videoWidth * heightRatio);
+            int xOffset = (newWidth - width) / 2;
+            GLES20.glViewport(-xOffset, 0, newWidth, height);
+        }
+        else
+        {
+            float widthRatio = width / (float)videoWidth;
+            int newHeight = (int)(videoHeight * widthRatio);
+            int yOffset = (newHeight - height) / 2;
+            GLES20.glViewport(0, -yOffset, width, newHeight);
+        }
+
+        adjustViewport = SCALE_RESET;
+    }
+
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
@@ -247,7 +297,7 @@ public class VideoTextureRenderer extends TextureSurfaceRenderer implements Surf
     {
         this.videoWidth = width;
         this.videoHeight = height;
-        adjustViewport = true;
+//        adjustViewport = true;
     }
 
     @Override

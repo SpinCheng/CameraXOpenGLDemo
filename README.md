@@ -2,7 +2,7 @@
 
 ### 实现
 
-两种实现方式预览
+两种实现方式预览，通过rendererMode参数控制切换
 1. GLSurfaceView
 2. TextureView
 
@@ -28,4 +28,10 @@ mSurfaceTexture.setDefaultBufferSize(1440,1080)
 shader语法错误，也会导致该问题
 
 3. 退出之后再次进入崩溃
+surface为空
+
+4. 预览画面比例不正常
+解决TextureView变形问题，开启矩阵转换适配竖屏模式，宽高需要置换
+
+
 
