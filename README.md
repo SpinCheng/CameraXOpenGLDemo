@@ -4,7 +4,7 @@
 
 两种实现方式预览，通过rendererMode参数控制切换
 1. GLSurfaceView
-2. TextureView
+2. TextureView (Consumer API>=24 可使用回调代替)
 
 
 依赖Surface实现

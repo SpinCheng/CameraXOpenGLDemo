@@ -20,10 +20,12 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.cameraxdemo.databinding.ActivityMainBinding
+import com.example.cameraxdemo.glsurfaceview.CameraRender
 import com.example.cameraxdemo.glsurfaceview.GLCameraView
 import com.example.cameraxdemo.glsurfaceview.OnPreviewSurfaceView
 import com.example.cameraxdemo.textureview.VideoTextureRenderer
 import java.io.File
+import java.io.Serializable
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.Executor
@@ -49,7 +51,7 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
         RENDERER_MODE_GLSURFACEVIEW  //GLSurfaceView模式
     }
 
-    private val rendererMode: RendererMode = RendererMode.RENDERER_MODE_TEXTUREVIEW
+    private val rendererMode: RendererMode = RendererMode.RENDERER_MODE_GLSURFACEVIEW
 
     private lateinit var cameraExecutor: ExecutorService
 
@@ -58,8 +60,6 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
         private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
         private const val REQUEST_CODE_PERMISSIONS = 10
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
-
-
         private lateinit var outputDirectory: File
     }
 
@@ -158,19 +158,27 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
     class PreviewSurfaceProvider(private val surface: Surface, private val executor: Executor) :
         Preview.SurfaceProvider {
 
-        private lateinit var renderer:VideoTextureRenderer
+        private lateinit var renderer:Serializable
 
-        fun setRenderer(renderer:VideoTextureRenderer){
+        fun isRendererInit() = this::renderer.isInitialized
+
+        fun setRenderer(renderer:Serializable){
             this.renderer = renderer
         }
 
         override fun onSurfaceRequested(request: SurfaceRequest) {
-            Utils.LOGI("onSurfaceRequested---request.resolution.height=" + request.resolution.height + ",,request.resolution.width=" + request.resolution.width
-            )
-            //解决TextureView变形问题，开启矩阵转换适配竖屏模式，宽高需要置换
-            renderer?.setVideoSize(request.resolution.height,request.resolution.width)
-            //关闭矩阵转换，宽高需要正常传入
+            Utils.LOGI("onSurfaceRequested---request.resolution.height=" + request.resolution.height + ",,request.resolution.width=" + request.resolution.width)
+
+            if (isRendererInit()){
+                    if (renderer is VideoTextureRenderer){
+                        //解决TextureView变形问题，开启矩阵转换适配竖屏模式，宽高需要置换
+                        (renderer as VideoTextureRenderer).setVideoSize(request.resolution.height,request.resolution.width)
+                        //关闭矩阵转换，宽高需要正常传入
 //            renderer?.setVideoSize(request.resolution.width,request.resolution.height)
+                    }else if(renderer is CameraRender){
+                        (renderer as CameraRender).previewSize = Size(request.resolution.height,request.resolution.width)
+                    }
+            }
 
             request.provideSurface(surface, executor, {
                 Utils.LOGI( "provideSurface in")
@@ -202,7 +210,9 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
                             PreviewSurfaceProvider(
                                 (rendererView as GLCameraView).renderer.surface,
                                 executor = Executors.newSingleThreadExecutor()
-                            )
+                            ).also {
+                                it.setRenderer((rendererView as GLCameraView).renderer)
+                            }
                         )
                     } else if (rendererMode == RendererMode.RENDERER_MODE_TEXTUREVIEW) {
                         it.setSurfaceProvider(

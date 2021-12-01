@@ -10,6 +10,7 @@ import android.util.Log;
 
 import com.example.cameraxdemo.Utils;
 
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -18,7 +19,7 @@ import java.util.function.Consumer;
 
 import androidx.annotation.RequiresApi;
 
-public class VideoTextureRenderer extends TextureSurfaceRenderer implements SurfaceTexture.OnFrameAvailableListener
+public class VideoTextureRenderer extends TextureSurfaceRenderer implements SurfaceTexture.OnFrameAvailableListener, Serializable
 {
     private static final String VERTEX_SHADER_CODE =
                     "attribute vec4 vPosition;" +
@@ -79,7 +80,7 @@ public class VideoTextureRenderer extends TextureSurfaceRenderer implements Surf
     private final int SCALE_MODE_FIT = 0;
     private final int SCALE_MODE_CENTER_INSIDE = 1;
     private final int SCALE_MODE_CENTER_CROP = 2;
-    private int adjustViewport = SCALE_MODE_CENTER_INSIDE;
+    private int adjustViewport = SCALE_MODE_CENTER_CROP;
 
     public void setAdjustViewport(int adjustViewport) {
         this.adjustViewport = adjustViewport;
@@ -229,14 +230,14 @@ public class VideoTextureRenderer extends TextureSurfaceRenderer implements Surf
         if (surfaceAspect > videoAspect)
         {
             float heightRatio = height / (float)videoHeight;
-            int newWidth = (int)(width * heightRatio);
+            int newWidth = (int)(videoWidth * heightRatio);
             int xOffset = (newWidth - width) / 2;
             GLES20.glViewport(-xOffset, 0, newWidth, height);
         }
         else
         {
             float widthRatio = width / (float)videoWidth;
-            int newHeight = (int)(height * widthRatio);
+            int newHeight = (int)(videoHeight * widthRatio);
             int yOffset = (newHeight - height) / 2;
             GLES20.glViewport(0, -yOffset, width, newHeight);
         }
@@ -297,7 +298,7 @@ public class VideoTextureRenderer extends TextureSurfaceRenderer implements Surf
     {
         this.videoWidth = width;
         this.videoHeight = height;
-//        adjustViewport = true;
+        adjustViewport = SCALE_MODE_CENTER_CROP;
     }
 
     @Override

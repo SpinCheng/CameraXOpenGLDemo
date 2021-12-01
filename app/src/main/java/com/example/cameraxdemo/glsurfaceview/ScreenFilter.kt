@@ -4,6 +4,7 @@ import android.content.Context
 import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import android.util.Log
+import com.example.cameraxdemo.Utils.Companion.LOGI
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
@@ -149,10 +150,22 @@ class ScreenFilter(context: Context) {
         this.mtx = mtx
     }
 
-    fun onDraw(texture: Int) {
+    private val SCALE_RESET = -1
+    private val SCALE_MODE_FIT = 0
+    private val SCALE_MODE_CENTER_INSIDE = 1
+    private val SCALE_MODE_CENTER_CROP = 2
+    private var adjustViewport = SCALE_MODE_CENTER_INSIDE
+
+    fun onDraw(texture: Int, videoWidth: Int, videoHeight: Int) {
+        when (adjustViewport) {
+            SCALE_MODE_CENTER_CROP -> setScaleModeCenterCrop(videoWidth,videoHeight)
+            SCALE_MODE_CENTER_INSIDE -> setScaleModeCenterInside(videoWidth,videoHeight)
+            else -> {
+            }
+        }
 
         //设置绘制区域
-        GLES20.glViewport(0, 0, mWidth, mHeight);
+//        GLES20.glViewport(0, 0, mWidth, mHeight);
         GLES20.glUseProgram(program);
 
         vertexBuffer?.position(0);
@@ -181,6 +194,46 @@ class ScreenFilter(context: Context) {
 
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0);
 
+    }
+
+
+    private fun setScaleModeCenterCrop(videoWidth:Int,videoHeight:Int) {
+        LOGI("setScaleModeCenterCrop--w*h=$mWidth*$mHeight")
+        LOGI("setScaleModeCenterCrop--vw*vh=$videoWidth*$videoHeight")
+        val surfaceAspect: Float = mHeight / mWidth.toFloat()
+        val videoAspect: Float = videoHeight / videoWidth.toFloat()
+        if (surfaceAspect > videoAspect) {
+            val heightRatio: Float = mHeight / videoHeight.toFloat()
+            val newWidth = (videoWidth * heightRatio).toInt()
+            val xOffset: Int = (newWidth - mWidth) / 2
+            GLES20.glViewport(-xOffset, 0, newWidth, mHeight)
+        } else {
+            val widthRatio: Float = mWidth / videoWidth.toFloat()
+            val newHeight = (videoHeight * widthRatio).toInt()
+            val yOffset: Int = (newHeight - mHeight) / 2
+            GLES20.glViewport(0, -yOffset, mWidth, newHeight)
+        }
+        adjustViewport = SCALE_RESET
+    }
+
+    private fun setScaleModeCenterInside(videoWidth:Int,videoHeight:Int) {
+        LOGI("setScaleModeCenterInside--w*h=$mWidth*$mHeight")
+        LOGI("setScaleModeCenterInside--vw*vh=$videoWidth*$videoHeight")
+        val surfaceAspect: Float = mHeight / mWidth.toFloat()
+        val videoAspect: Float = videoHeight / videoWidth.toFloat()
+        LOGI("setScaleModeCenterInside--surfaceAspect=$surfaceAspect，videoAspect=$videoAspect")
+        if (surfaceAspect < videoAspect) {
+            val heightRatio: Float = mHeight / videoHeight.toFloat()
+            val newWidth = (videoWidth * heightRatio).toInt()
+            val xOffset: Int = (newWidth - mWidth) / 2
+            GLES20.glViewport(-xOffset, 0, newWidth, mHeight)
+        } else {
+            val widthRatio: Float = mWidth / videoWidth.toFloat()
+            val newHeight = (videoHeight * widthRatio).toInt()
+            val yOffset: Int = (newHeight - mHeight) / 2
+            GLES20.glViewport(0, -yOffset, mWidth, newHeight)
+        }
+        adjustViewport = SCALE_RESET
     }
 
 

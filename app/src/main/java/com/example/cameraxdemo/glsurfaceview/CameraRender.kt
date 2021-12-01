@@ -5,13 +5,16 @@ import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.util.Log
+import android.util.Size
 import android.view.Surface
 import androidx.camera.core.Preview
+import java.io.Serializable
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 
 class CameraRender(cameraView: GLCameraView) : GLSurfaceView.Renderer,
+    Serializable,
     SurfaceTexture.OnFrameAvailableListener{
     private var mCameraView: GLCameraView = cameraView
 
@@ -23,11 +26,11 @@ class CameraRender(cameraView: GLCameraView) : GLSurfaceView.Renderer,
     var preview: Preview = Preview.Builder().build()
 
     lateinit var onPreviewSurfaceView: OnPreviewSurfaceView
-
+    lateinit var previewSize: Size
 
     //判断surface是否已初始化
     fun isSurfaceInit() = ::surface.isInitialized
-
+    fun isPreviewSizeInit() = this::previewSize.isInitialized
 
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
@@ -61,7 +64,9 @@ class CameraRender(cameraView: GLCameraView) : GLSurfaceView.Renderer,
         mSurfaceTexture.updateTexImage()
         mSurfaceTexture.getTransformMatrix(mtx)
         screenFilter.setTransformMatrix(mtx);
-        screenFilter.onDraw(textures[0]);
+        if(isPreviewSizeInit()){
+            screenFilter.onDraw(textures[0],previewSize.width,previewSize.height);
+        }
     }
 
     fun onSurfaceDestroyed() {
