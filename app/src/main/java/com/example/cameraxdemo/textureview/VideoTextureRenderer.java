@@ -19,7 +19,10 @@ import java.util.function.Consumer;
 
 import androidx.annotation.RequiresApi;
 
-public class VideoTextureRenderer extends TextureSurfaceRenderer implements SurfaceTexture.OnFrameAvailableListener, Serializable
+public class VideoTextureRenderer
+        extends TextureSurfaceRenderer
+        implements SurfaceTexture.OnFrameAvailableListener,
+        Serializable  //便于进行参数传递，方便用于类型转换
 {
     private static final String VERTEX_SHADER_CODE =
                     "attribute vec4 vPosition;" +

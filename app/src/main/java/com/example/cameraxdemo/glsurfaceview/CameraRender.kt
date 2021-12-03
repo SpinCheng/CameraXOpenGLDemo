@@ -8,14 +8,16 @@ import android.util.Log
 import android.util.Size
 import android.view.Surface
 import androidx.camera.core.Preview
+import com.example.cameraxdemo.Utils
 import java.io.Serializable
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 
 class CameraRender(cameraView: GLCameraView) : GLSurfaceView.Renderer,
-    Serializable,
-    SurfaceTexture.OnFrameAvailableListener{
+    Serializable, //便于进行参数传递，方便用于类型转换
+    SurfaceTexture.OnFrameAvailableListener
+{
     private var mCameraView: GLCameraView = cameraView
 
     private lateinit var mSurfaceTexture: SurfaceTexture
@@ -23,14 +25,13 @@ class CameraRender(cameraView: GLCameraView) : GLSurfaceView.Renderer,
     private lateinit var screenFilter: ScreenFilter
     private var mtx = FloatArray(16)
     lateinit var surface:Surface
-    var preview: Preview = Preview.Builder().build()
 
     lateinit var onPreviewSurfaceView: OnPreviewSurfaceView
     lateinit var previewSize: Size
 
     //判断surface是否已初始化
     fun isSurfaceInit() = ::surface.isInitialized
-    fun isPreviewSizeInit() = this::previewSize.isInitialized
+    private fun isPreviewSizeInit() = this::previewSize.isInitialized
 
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
@@ -43,7 +44,7 @@ class CameraRender(cameraView: GLCameraView) : GLSurfaceView.Renderer,
         mSurfaceTexture= SurfaceTexture(textureid)
         mSurfaceTexture.setOnFrameAvailableListener(this)
         //设置之后解决预览模糊问题
-        mSurfaceTexture.setDefaultBufferSize(1440,1080)
+//        mSurfaceTexture.setDefaultBufferSize(1440,1080)
 
         surface = Surface(mSurfaceTexture)
         //通知surfaceview创建完成，可以进行获取surface操作
@@ -54,12 +55,19 @@ class CameraRender(cameraView: GLCameraView) : GLSurfaceView.Renderer,
 
     }
 
+    fun setBufferSize(size: Size){
+        Utils.LOGI("setBufferSize=Size = $size")
+        previewSize = size
+        mSurfaceTexture.setDefaultBufferSize(previewSize.width,previewSize.height)
+    }
+
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
         Log.i("cx---","onSurfaceChanged")
         screenFilter.setSize(width, height)
     }
 
     override fun onDrawFrame(gl: GL10?) {
+//        Utils.LOGI("onDrawFrame")
 
         mSurfaceTexture.updateTexImage()
         mSurfaceTexture.getTransformMatrix(mtx)

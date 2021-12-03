@@ -64,7 +64,6 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
     }
 
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -92,7 +91,6 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
         }
 
 
-
         // Set up the listener for take photo button
         binding.cameraCaptureButton.setOnClickListener { takePhoto() }
 
@@ -103,8 +101,6 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
         binding.openOrCloseCamera.setOnClickListener { openOrCloseCamera() }
 
         binding.switchCamera.setOnClickListener { switchCamera() }
-
-
 
 
     }
@@ -158,30 +154,40 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
     class PreviewSurfaceProvider(private val surface: Surface, private val executor: Executor) :
         Preview.SurfaceProvider {
 
-        private lateinit var renderer:Serializable
+        private lateinit var renderer: Serializable
 
-        fun isRendererInit() = this::renderer.isInitialized
+        private fun isRendererInit() = this::renderer.isInitialized
 
-        fun setRenderer(renderer:Serializable){
+        fun setRenderer(renderer: Serializable) {
             this.renderer = renderer
         }
 
         override fun onSurfaceRequested(request: SurfaceRequest) {
             Utils.LOGI("onSurfaceRequested---request.resolution.height=" + request.resolution.height + ",,request.resolution.width=" + request.resolution.width)
 
-            if (isRendererInit()){
-                    if (renderer is VideoTextureRenderer){
-                        //解决TextureView变形问题，开启矩阵转换适配竖屏模式，宽高需要置换
-                        (renderer as VideoTextureRenderer).setVideoSize(request.resolution.height,request.resolution.width)
-                        //关闭矩阵转换，宽高需要正常传入
+            if (isRendererInit()) {
+                if (renderer is VideoTextureRenderer) {
+                    //解决TextureView变形问题，开启矩阵转换适配竖屏模式，宽高需要置换
+                    (renderer as VideoTextureRenderer).setVideoSize(
+                        request.resolution.height,
+                        request.resolution.width
+                    )
+                    //关闭矩阵转换，宽高需要正常传入
 //            renderer?.setVideoSize(request.resolution.width,request.resolution.height)
-                    }else if(renderer is CameraRender){
-                        (renderer as CameraRender).previewSize = Size(request.resolution.height,request.resolution.width)
-                    }
+                } else if (renderer is CameraRender) {
+//                        (renderer as CameraRender).previewSize = Size(request.resolution.height,request.resolution.width)
+                    (renderer as CameraRender).setBufferSize(
+                        Size(
+                            request.resolution.height,
+                            request.resolution.width
+                        )
+                    )
+
+                }
             }
 
             request.provideSurface(surface, executor, {
-                Utils.LOGI( "provideSurface in")
+                Utils.LOGI("provideSurface in")
             })
         }
     }
@@ -195,7 +201,7 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
 
             // Preview
             preview = Preview.Builder()
-                .setTargetResolution(Size(720,480))
+                .setTargetResolution(Size(1920, 1080))
 //                .setTargetAspectRatio(AspectRatio.RATIO_16_9)
 //                .setTargetRotation(Surface.ROTATION_90)
                 .build()
@@ -334,7 +340,6 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
     }
 
 
-
     override fun onRequestPermissionsResult(
         requestCode: Int, permissions: Array<String>, grantResults:
         IntArray
@@ -342,7 +347,7 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
-                    startCamera()
+                startCamera()
             } else {
                 Toast.makeText(
                     this,
