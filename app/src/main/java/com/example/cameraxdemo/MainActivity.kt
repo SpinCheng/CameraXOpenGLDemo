@@ -201,7 +201,7 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
 
             // Preview
             preview = Preview.Builder()
-                .setTargetResolution(Size(1920, 1080))
+                .setTargetResolution(Size(1080, 1920))
 //                .setTargetAspectRatio(AspectRatio.RATIO_16_9)
 //                .setTargetRotation(Surface.ROTATION_90)
                 .build()

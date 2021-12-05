@@ -4,6 +4,7 @@ import android.content.Context
 import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import android.util.Log
+import com.example.cameraxdemo.R
 import com.example.cameraxdemo.Utils.Companion.LOGI
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -23,27 +24,9 @@ class ScreenFilter(context: Context) {
     private var mHeight = 0
     private lateinit var mtx: FloatArray
 
-    val vertexSharder = "//顶点坐标 \n" +
-            "attribute vec4 vPosition;\n" +
-            "//传给片元进行采样的纹理坐标 \n" +
-            "attribute vec4 vCoord; \n" +
-            "//易变变量 和片元写的一模一样 会传给片元 \n" +
-            "varying vec2 aCoord; \n" +
-            "uniform mat4 vMatrix; \n"+
-            "void main(){ \n" +
-            "//内置变量 顶点给它就行 \n" +
-            "gl_Position = vPosition; \n" +
-            "aCoord = (vMatrix * vCoord).xy; \n" +
-//            "aCoord = vCoord; \n" +
-            "}"
+    val vertexSharder:String = OpenGLUtils.readRawTextFile(context, R.raw.camera_vert)
 
-    val fragSharder = "#extension GL_OES_EGL_image_external : require \n" +
-            "precision mediump float; //数据精度 \n" +
-            "varying vec2 aCoord; \n" +
-            "uniform samplerExternalOES vTexture; \n" +
-            "void main(){ \n" +
-            "gl_FragColor = texture2D(vTexture,aCoord); \n" +
-            "}"
+    val fragSharder:String = OpenGLUtils.readRawTextFile(context,R.raw.camera_frag)
 
 
     init {
@@ -134,6 +117,7 @@ class ScreenFilter(context: Context) {
         GLES20.glAttachShader(mProgram, vshader)
         GLES20.glAttachShader(mProgram, fshader)
 
+
         GLES20.glLinkProgram(mProgram)
         return mProgram;
     }
@@ -164,6 +148,9 @@ class ScreenFilter(context: Context) {
             }
         }
 
+        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+
         //设置绘制区域
 //        GLES20.glViewport(0, 0, mWidth, mHeight);
         GLES20.glUseProgram(program);
@@ -175,10 +162,12 @@ class ScreenFilter(context: Context) {
         GLES20.glEnableVertexAttribArray(vPosition);
 
         textureBuffer?.position(0);
+//        LOGI("onDraw-1-vCoord=$vCoord,vPosition=$vPosition")
         //normalized  [-1,1] . 把[2,2]转换为[-1,1]
         GLES20.glVertexAttribPointer(vCoord, 4, GLES20.GL_FLOAT, false, 0, textureBuffer);
         //CPU传数据到GPU，默认情况下着色器无法读取到这个数据。 需要我们启用一下才可以读取
         GLES20.glEnableVertexAttribArray(vCoord);
+
 
         //相当于激活一个用来显示图片的画框
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);
