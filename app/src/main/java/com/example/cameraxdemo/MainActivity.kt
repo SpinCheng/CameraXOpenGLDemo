@@ -12,7 +12,6 @@ import android.util.Size
 import android.view.*
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.ActionBarContainer
 import androidx.camera.core.*
 import androidx.camera.core.Camera
 import androidx.camera.core.impl.*
@@ -248,7 +247,7 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
                 .also {
                     it.setAnalyzer(cameraExecutor, LuminosityAnalyzer { luma ->
                         Log.d(TAG, "Average luminosity: $luma")
-
+                        //TODO: 视频流分析
                     })
                 }
 
@@ -287,6 +286,9 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
         }
     }
 
+    /**
+     * TODO:该方案不合理
+     */
     private fun openOrCloseCamera() {
         if (cameraProvider.isBound(imageCapture!!)) {
             cameraProvider.unbindAll()
@@ -312,26 +314,6 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
             mediaDir else filesDir
     }
 
-    override fun onResume() {
-        Utils.LOGI("onResume")
-        super.onResume()
-
-    }
-
-    override fun onStart() {
-        Utils.LOGI("onStart")
-        super.onStart()
-    }
-
-    override fun onPause() {
-        Utils.LOGI("onPause")
-        super.onPause()
-    }
-
-    override fun onStop() {
-        Utils.LOGI("onStop")
-        super.onStop()
-    }
 
     override fun onDestroy() {
         Utils.LOGI("onDestroy")
@@ -360,12 +342,10 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
     }
 
 
+
     private class LuminosityAnalyzer(private val listener: LumaListener) : ImageAnalysis.Analyzer {
 
         private fun ImageProxy.toByteArray(): ByteArray {
-//            rewind()    // Rewind the buffer to zero
-//            val data = ByteArray(remaining())
-//            get(data)   // Copy the buffer into a byte array
 
             val yBuffer = planes[0].buffer // Y
             val uBuffer = planes[1].buffer // U
@@ -382,7 +362,8 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
             yBuffer.get(nv21, 0, ySize)
             vBuffer.get(nv21, ySize, vSize)   //VUVU
 //            uBuffer.get(nv21, ySize + vSize, uSize) //
-            //-------I420转NV21
+
+//            //-------I420转NV21
 //            for (i in 0..(vSize+uSize) ){
 //                if (i%2 == 0){
 //                    vBuffer.get(nv21,ySize+i,1)
@@ -396,49 +377,43 @@ class MainActivity : AppCompatActivity(), TextureView.SurfaceTextureListener  //
 
         override fun analyze(image: ImageProxy) {
 
-//            val buffer = image.planes[0].buffer
-//            val data = buffer.toByteArray()
-//            val pixels = data.map { it.toInt() and 0xFF }
-//            val luma = pixels.average()
-//
-//
+            Log.i(TAG, "image format: " + image.format)
+//            // 从image里获取三个plane
+//            // 从image里获取三个plane
+            val planes = image.planes
+            for (i in planes.indices) {
+                val iBuffer = planes[i].buffer
+                val iSize = iBuffer.remaining()
+                Log.i(TAG, "pixelStride  " + planes[i].pixelStride)
+                Log.i(TAG, "rowStride   " + planes[i].rowStride)
+                Log.i(TAG, "width  " + image.width)
+                Log.i(TAG, "height  " + image.height)
+                Log.v(TAG, "buffer size $iSize")
+                Log.i(TAG, "Finished reading data from plane  $i")
+            }
 
-            //-------------------------
-//            Log.i(TAG, "image format: " + image.format)
-////            // 从image里获取三个plane
-////            // 从image里获取三个plane
-//            val planes = image.planes
-//            for (i in planes.indices) {
-//                val iBuffer = planes[i].buffer
-//                val iSize = iBuffer.remaining()
-//                Log.i(TAG, "pixelStride  " + planes[i].pixelStride)
-//                Log.i(TAG, "rowStride   " + planes[i].rowStride)
-//                Log.i(TAG, "width  " + image.width)
-//                Log.i(TAG, "height  " + image.height)
-//                Log.v(TAG, "buffer size $iSize")
-//                Log.i(TAG, "Finished reading data from plane  $i")
-//            }
-//            listener(image.toByteArray())
-//            image.toBitmap()
+            val nv21:ByteArray = image.toByteArray()
+            //回调抛出nv21数据
+            listener(nv21)
+
+            //保存文件
+            image.toJpeg(nv21)
 
             //-------------------------------
 //            val path = outputDirectory.absolutePath+"/bitmap-${System.currentTimeMillis()}"
 //            Utils.compressToJpeg(path,image)
 
-
+            //需要关闭
             image.close()
         }
 
-
-        fun ImageProxy.toBitmap(nv21: ByteArray): Bitmap? {
+        //NV21转jpg 保存jpg到本地
+        fun ImageProxy.toJpeg(nv21: ByteArray) {
             val path = outputDirectory.absolutePath + "/preview-${System.currentTimeMillis()}"
-
             //保存yuv
 //            Utils.dumpFile("$path.yuv", nv21)
             //保存jpg
             Utils.compressToJpeg(nv21, "$path.jpg", this)
-
-            return null;
         }
 
 

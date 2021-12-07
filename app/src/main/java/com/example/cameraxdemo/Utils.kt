@@ -45,6 +45,7 @@ class Utils {
             return false
         }
 
+
         private fun getDataFromImage(fileName: String,image: ImageProxy, colorFormat: Int): ByteArray? {
             require(!(colorFormat != COLOR_FormatI420 && colorFormat != COLOR_FormatNV21)) { "only support COLOR_FormatI420 " + "and COLOR_FormatNV21" }
             if (!isImageFormatSupported(image)) {
