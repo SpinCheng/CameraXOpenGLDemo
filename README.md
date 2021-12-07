@@ -1,6 +1,7 @@
 # CameraX+OpenGLES
 
 ## 实现
+OpenGL 2.0
 
  两种实现方式预览，通过rendererMode参数控制切换
 1. GLSurfaceView
@@ -11,7 +12,7 @@
 -----------------
 ## 踩坑
 
-1. 预览模糊 使用surface之后，预览设置无效
+1. 预览模糊 使用surface之后，Preview预览参数设置无效
 
 ```
 //设置之后解决预览模糊问题//
